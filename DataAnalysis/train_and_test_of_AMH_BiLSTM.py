@@ -31,7 +31,7 @@ def save_log(message, file_name):
 
 
 def train_model(model, train_loader, val_loader, device, epochs=50, lr=0.001):
-    print("\n===================== 开始训练 =====================")
+    print("\n===================== Start training =====================")
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     model.to(device)
@@ -57,8 +57,7 @@ def train_model(model, train_loader, val_loader, device, epochs=50, lr=0.001):
             features, labels = features.to(device), labels.to(device)
             optimizer.zero_grad()
 
-            # 修改这里：只取第一个输出（logits）
-            outputs, _ = model(features)  # 解包元组，只取logits
+            outputs, _ = model(features)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -105,7 +104,7 @@ def train_model(model, train_loader, val_loader, device, epochs=50, lr=0.001):
     plt.ylabel('Loss')
     plt.legend()
     plt.tight_layout()
-    plt.savefig('checkpoints/training_metrics_AMH_BiLSTM_128_SMOTE.png')   # 这里也应该修改
+    plt.savefig('checkpoints/training_metrics_AMH_BiLSTM_128_SMOTE.png')
     plt.close()
     print('Finished Training')
 
@@ -130,19 +129,16 @@ def test_model(model, test_loader, device):
     all_true = []
     all_pred = []
     all_pred_probs = []
-    criterion = nn.CrossEntropyLoss()  # 交叉熵损失函数
+    criterion = nn.CrossEntropyLoss()
 
-    with torch.no_grad():  # 测试阶段禁用梯度计算
+    with torch.no_grad():
         for data in test_loader:
             inputs, labels = data
             inputs, labels = inputs.to(device), labels.to(device)
 
-            # ========== 关键修复：处理模型返回的元组 ==========
             model_output = model(inputs)
-            # 如果模型返回的是 (output, attn_weights, ...)，取第一个元素作为预测得分
             outputs = model_output[0] if isinstance(model_output, tuple) else model_output
 
-            # 计算损失
             loss = criterion(outputs, labels)
             total_loss += loss.item()
             probs = torch.softmax(outputs, dim=1)
@@ -154,10 +150,8 @@ def test_model(model, test_loader, device):
             all_true.extend(labels.cpu().numpy())
             all_pred.extend(predicted.cpu().numpy())
 
-    # 计算准确率和平均损失
     acc = correct / total
     avg_loss = total_loss / len(test_loader)
-    # 转换预测概率为Numpy数组（适配ROC函数）
     all_pred_probs = np.array(all_pred_probs)
 
     return acc, avg_loss, all_true, all_pred, all_pred_probs
@@ -186,14 +180,13 @@ def test_main(test_loader, device):
 
     model = load_trained_model('checkpoints/best_ecg_AMH_BiLSTM(128,0.001,1)_SMOTE_f1.pth', device)
 
-    # 注意：需要修改 test_model 使其返回预测概率（而非仅预测标签）
     acc, loss, all_true, all_pred, all_pred_probs = test_model(model, test_loader, device)
 
     print('Acc: {:.4f}'.format(acc))
     print(classification_report(all_true, all_pred, target_names=['N', 'S', 'V', 'F', 'Q'], digits=4))
-    # compute_confusion_matrix(all_true, all_pred)
-
-    # 调用ROC曲线绘制函数
+    # draw confusion matris
+    compute_confusion_matrix(all_true, all_pred)
+    # draw ROU curve
     draw_ROC(all_true, all_pred_probs, n_classes=5)
 
 def compute_confusion_matrix(all_true, all_pred):
@@ -237,60 +230,48 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label', fontsize=14)
     plt.xlabel('Predicted label', fontsize=14)
     plt.tick_params(axis='both', which='major', labelsize=12)
-    plt.savefig('results/confusion_matrix_BiLSTM_skip_50_128.png', dpi=1000)
+    plt.savefig('results/confusion_matrix_AMHBiLSTM.png', dpi=1000)
 
 def draw_ROC(all_true, all_pred_probs, n_classes=5):
     """
-    绘制多分类任务的ROC曲线（One-vs-Rest 方式）
-    参数:
-        all_true: 真实标签列表/数组 (形状: [n_samples])
-        all_pred_probs: 模型对每个类别的预测概率 (形状: [n_samples, n_classes])
-        n_classes: 类别数量，默认5（对应N/S/V/F/Q）
+    param:
+        all_true: ture label ([n_samples])
+        all_pred_probs: prediction probability ([n_samples, n_classes])
+        n_classes: 5 class（N/S/V/F/Q）
     """
-    # 1. 将真实标签二值化（One-vs-Rest）
-    y_true = label_binarize(all_true, classes=[0, 1, 2, 3, 4])  # 假设类别编码为0-4对应N/S/V/F/Q
+    y_true = label_binarize(all_true, classes=[0, 1, 2, 3, 4])
 
-    # 2. 检查输入形状
     if y_true.shape[1] != n_classes:
-        raise ValueError(f"真实标签二值化后维度为 {y_true.shape[1]}，与类别数 {n_classes} 不匹配！")
+        raise ValueError(f"After binarizing the true labels, the dimension is {y_true.shape[1]}, which does not match the number of classes {n_classes}!")
     if all_pred_probs.shape[1] != n_classes:
-        raise ValueError(f"预测概率维度为 {all_pred_probs.shape[1]}，与类别数 {n_classes} 不匹配！")
+        raise ValueError(f"The prediction probability dimension is {all_pred_probs.shape[1]}, which does not match the number of classes {n_classes}!")
 
-    # 3. 计算每个类别的ROC曲线和AUC值
-    fpr = dict()  # 假阳性率
-    tpr = dict()  # 真阳性率
+    fpr = dict()
+    tpr = dict()
     roc_auc = dict()
     for i in range(n_classes):
         fpr[i], tpr[i], _ = roc_curve(y_true[:, i], all_pred_probs[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
 
-    # 4. 计算微平均ROC曲线和AUC（可选，体现整体性能）
     fpr["micro"], tpr["micro"], _ = roc_curve(y_true.ravel(), all_pred_probs.ravel())
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
 
-    # 5. 绘制ROC曲线
     plt.figure(figsize=(8, 7))
     class_names = ['N', 'S', 'V', 'F', 'Q']  # 对应0-4类
-    # colors = ['blue', 'red', 'green', 'orange', 'purple']  # 每个类别对应颜色
-    # colors = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd']
     colors = ['#547BB4', '#C0321A', '#629C35', '#DD7C4F', '#6C61AF']
-    # 绘制每个类别的ROC曲线
     for i, color in zip(range(n_classes), colors):
         plt.plot(
             fpr[i], tpr[i], color=color, lw=2,
             label=f'Class {class_names[i]} (AUC = {roc_auc[i]:.4f})'
         )
 
-    # 绘制微平均ROC曲线（可选）
     plt.plot(
         fpr["micro"], tpr["micro"], color='black', linestyle='--', lw=2,
         label=f'Micro-average(AUC = {roc_auc["micro"]:.4f})'
     )
 
-    # 绘制随机猜测的参考线
-    plt.plot([0, 1], [0, 1], 'k--', lw=2, label='Random classifier', color='#6F6F6F')
+    plt.plot([0, 1], [0, 1], 'k--', lw=2, label='Random classifier')
 
-    # 图表样式设置
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate (FPR)', fontsize=14)
@@ -299,8 +280,7 @@ def draw_ROC(all_true, all_pred_probs, n_classes=5):
     plt.legend(loc="lower right", fontsize=12)
     # plt.grid(alpha=0.3)
     plt.tick_params(axis='both', which='major', labelsize=14)
-    # 保存图片（建议与混淆矩阵同目录）
-    plt.savefig('results/ROC_curve_BiLSTM_skip_50_128.png', dpi=1000, bbox_inches='tight')
+    plt.savefig('results/ROC_curve_AMHBiLSTM.png', dpi=1000, bbox_inches='tight')
     # plt.show()
 
 

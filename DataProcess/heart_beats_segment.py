@@ -85,7 +85,7 @@ def _segment_prominence(
     # waves_new['symbol'] = symbol
     # print(pd.DataFrame(waves_new))
     # (pd.DataFrame(waves_new)).to_csv(f'Peaks/{name}.csv', index=False)
-    # 确保分割的是完整波形
+    # Ensure that the waveform being segmented is complete
     none_idx = [i for i in range(len(waves_new['P_on']))
                 if waves_new['P_on'][i] is None or waves_new['T_off'][i] is None]
     for i, (onset, offset) in enumerate(zip(waves_new['P_on'], waves_new['T_off'])):
@@ -124,8 +124,8 @@ def find_positions(fs, filter_ecg, waves):
 
     for i in range(len(R)):
         r_peak = R[i]
-        # ====================== 寻找Q波核心位置 ======================
-        # Q波搜索区间（R峰向前120ms）
+        # ====================== search Q wave ======================
+        # R peak 120ms ahead
         Q_search_start = max(0, r_peak - ms120)
         Q_search_end = r_peak
         search_sig = filter_ecg[Q_search_start: Q_search_end + 1]
@@ -138,11 +138,10 @@ def find_positions(fs, filter_ecg, waves):
             S_off.append(np.nan)
             continue
 
-        # 计算Q波谷（转全局索引）
         q_valley_idx = find_valley(Q_search_start, Q_search_end, filter_ecg)
         Q.append(q_valley_idx)
 
-        # ====================== 寻找Q波起点（Q波谷向前搜索） ======================
+        # ====================== search P_on ======================
         q_baseline_start = max(0, q_valley_idx - 50)
         q_baseline_end = max(0, q_valley_idx - 10)
         if q_baseline_end <= q_baseline_start:
@@ -155,19 +154,15 @@ def find_positions(fs, filter_ecg, waves):
                 Q_start = j
                 break
         Q_on.append(Q_start)
-        # ====================== 寻找Q波终点（修改核心：第一个接近基线的点） ======================
+        # ====================== search P_off ======================
         Q_end = q_valley_idx
-        for m in range(q_valley_idx, r_peak):    # 用基线
+        for m in range(q_valley_idx, r_peak):
             if abs(filter_ecg[m] - baseline_q) < threshold:
                 Q_end = m
                 break
-        # for m in range(q_valley_idx, r_peak):    # 用第一个上升点
-        #     if filter_ecg[m] > filter_ecg[m - 1]:
-        #         Q_end = m
-        #         break
         Q_off.append(Q_end)
 
-        # ====================== 寻找S波位置 ======================
+        # ====================== search S wave ======================
         s_search_start = Q_end
         s_search_end = min(len(filter_ecg) - 1, s_search_start + ms180)
         s_search_sig = filter_ecg[s_search_start: s_search_end + 1]
@@ -181,8 +176,7 @@ def find_positions(fs, filter_ecg, waves):
         s_valley_idx = find_valley(s_search_start, s_search_end, filter_ecg)
         S.append(s_valley_idx)
 
-        # ====================== 寻找S波起点（R峰→S波谷） ======================
-        # 1. 计算S波基线
+        # ====================== search S_on ======================
         baseline_window = 20
         baseline_start = min(len(filter_ecg) - 1, s_valley_idx + int(0.1 * fs))
         baseline_end = min(len(filter_ecg) - 1, baseline_start + baseline_window)
@@ -199,8 +193,8 @@ def find_positions(fs, filter_ecg, waves):
                 break
         S_on.append(s_start)
 
-        # ====================== 寻找S波终点（S波谷向后搜索） ======================
-        s_end = s_valley_idx  # 默认值
+        # ====================== search S_off ======================
+        s_end = s_valley_idx
         search_limit = min(len(filter_ecg) - 1, s_valley_idx + ms180)
         for idx in range(s_valley_idx, search_limit + 1):
             if abs(filter_ecg[idx] - baseline_s) < threshold:
@@ -208,7 +202,7 @@ def find_positions(fs, filter_ecg, waves):
                 break
         S_off.append(s_end)
 
-    # 更新waves字典
+    # update waves
     waves['Q'] = Q
     waves['Q_on'] = Q_on
     waves['Q_off'] = Q_off
@@ -230,7 +224,7 @@ def _segment_dpc(signal, fs):
     ...
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':     # for testing
     from Toolbox.DBtool import mitArr
 
     file_name = ['100', '101', '102', '103', '104', '105', '106', '107',

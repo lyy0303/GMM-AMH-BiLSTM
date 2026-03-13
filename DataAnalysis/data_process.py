@@ -21,7 +21,7 @@ class GaussianData():
         self.path = f'D:/PycharmProjects/EcgGmm/GaussECG/signal_and_params_of_5_gaussian_VG/{name}/' if name else None
 
     def read_csv(self, path, file_name):
-        """读取单个CSV文件"""
+        """Read a single CSV file"""
         df = pd.read_csv(os.path.join(path, file_name))
         for col in df.columns:
             if df[col].dtype == object and df[col].str.startswith('[').any():
@@ -29,7 +29,7 @@ class GaussianData():
         return df
 
     def combine_single(self, name):
-        """整合单个文件的数据"""
+        """Integrate data from a single file"""
         path = f'D:/PycharmProjects/EcgGmm/GaussECG/signal_and_params_of_5_gaussian_VG/{name}/'
         df1 = self.read_csv(path, file_name='fitting_results.csv')
         df2 = self.read_csv(path, file_name='gaussian_params.csv')
@@ -39,7 +39,7 @@ class GaussianData():
         return df2
 
     def combine_all(self):
-        """整合所有文件的数据"""
+        """Integrate data from all files"""
         all_data = []
         for name in file_name:
             print(f"Processing {name}...")
@@ -72,7 +72,7 @@ class GaussianData():
         return df
 
     def partition_all(self, df):
-        """对整合后的数据进行划分"""
+        """Split the integrated data"""
         # df = self.class_type()
         train_df, internal = train_test_split(df, train_size=0.6, random_state=42)
         val_df, test_df = train_test_split(internal, train_size=0.5, random_state=42)

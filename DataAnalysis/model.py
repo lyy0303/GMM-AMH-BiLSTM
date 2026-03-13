@@ -9,18 +9,18 @@ class ECG_LSTM(nn.Module):
             input_size=input_size,
             hidden_size=hidden_size,
             num_layers=num_layers,
-            batch_first=True,  # 输入格式：[batch, seq_len, feature]
+            batch_first=True,
             dropout=dropout if num_layers > 1 else 0
         )
-        self.fc = nn.Linear(hidden_size, num_classes)  # 分类输出
+        self.fc = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x):
-        # x形状: [batch_size, seq_len=1, input_size=16]
+        # x: [batch_size, seq_len=1, input_size=16]
         lstm_out, _ = self.lstm(x)  # lstm_out: [batch, seq_len, hidden_size]
-        out = self.fc(lstm_out[:, -1, :])  # 取最后一个时间步输出
+        out = self.fc(lstm_out[:, -1, :])
         return out
 
-class ECG_BiLSTM(nn.Module):  # 新增双向LSTM模型
+class ECG_BiLSTM(nn.Module):
     def __init__(self, input_size=16, hidden_size=64, num_layers=2, num_classes=5, dropout=0.3):
         super(ECG_BiLSTM, self).__init__()
         self.bilstm = nn.LSTM(
@@ -29,15 +29,14 @@ class ECG_BiLSTM(nn.Module):  # 新增双向LSTM模型
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0,
-            bidirectional=True  # 关键：启用双向
+            bidirectional=True
         )
-        # 双向LSTM输出维度是2*hidden_size，因此全连接层输入需要调整
+
         self.fc = nn.Linear(hidden_size * 2, num_classes)
 
     def forward(self, x):
-        # x形状: [batch_size, seq_len=1, input_size=16]
-        bilstm_out, _ = self.bilstm(x)  # 输出形状: [batch, seq_len, 2*hidden_size]
-        # 取最后一个时间步的输出（双向拼接后的结果）
+        # x: [batch_size, seq_len=1, input_size=16]
+        bilstm_out, _ = self.bilstm(x)
         out = self.fc(bilstm_out[:, -1, :])
         return out
 

@@ -1,0 +1,10 @@
+numpy~=2.3.2
+pandas~=2.3.1
+wfdb~=4.3.0
+neurokit2~=0.2.12
+matplotlib~=3.10.5
+scipy~=1.16.1
+tqdm~=4.67.1
+torch~=2.9.1+cu130
+scikit-learn~=1.7.1
+imblearn~=0.0

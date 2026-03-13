@@ -64,7 +64,6 @@ def error_function(
 
 
 def _log_error(message: str):
-    """将错误信息追加到日志文件"""
     with open('log_1.txt', 'a', encoding='utf-8') as f:
         f.write(message + "\n")
 
@@ -78,7 +77,7 @@ def get_params0(
     b = np.median(y)
 
     p0 = []
-    expected_clusters = 5  # P, Q, R, S, T 五个分量
+    expected_clusters = 5  # P, Q, R, S, T five components
     for cluster_idx in range(expected_clusters):
         cluster = cluster_idx + 1
 
@@ -87,44 +86,33 @@ def get_params0(
             cluster_x = x[mask]
             cluster_y = y[mask]
 
-            # 1. 改进极性判断：直接用聚类内的整体波动方向
             cluster_mean = np.mean(cluster_y) - b
             if cluster_mean > 0:
-                # 正向波
+                # Positive wave
                 peak_idx = np.argmax(cluster_y)
                 A = np.max(cluster_y) - b
                 polarity = 1
             else:
-                # 负向波
+                # Negative wave
                 peak_idx = np.argmin(cluster_y)
                 A = np.min(cluster_y) - b
                 polarity = -1
             mu = cluster_x[peak_idx]
 
-            # 2. 修复半高宽计算：统一正负向波的判断逻辑
             half_value = b + A / 2
             if polarity > 0:
                 above_half = cluster_y > half_value
             else:
-                # 负向波：寻找小于半高值的点
                 above_half = cluster_y < half_value
 
             if np.sum(above_half) > 1:
                 fwhm = cluster_x[above_half][-1] - cluster_x[above_half][0]
                 sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
             else:
-                # 当半高宽点不足时，用聚类宽度的1/4作为默认值
+                # When the half-width at half-maximum is insufficient, use one-fourth of the cluster width as the default value
                 sigma = (cluster_x[-1] - cluster_x[0]) / 4
 
             p0.extend([A, mu, sigma])
-        # else:
-        #     # 3. 新增：处理缺失的聚类（如T波聚类未被检测到的情况）
-        #     # 给缺失分量一个合理的初始猜测（基于典型心电图时程）
-        #     # 例如：T波通常在R波后约100-200ms
-        #     if cluster == 5:  # 假设第5类是T波
-        #         p0.extend([-0.2, 180, 20])  # 负向幅度、典型位置、宽度
-        #     else:
-        #         p0.extend([0.0, cluster_idx * 40, 10])  # 其他分量默认值
 
     p0.append(b)
     return np.array(p0)
@@ -133,10 +121,9 @@ def get_bounds(
         p0: NDArray[float],
         delta_peak: float = 0.5,
         delta_mu: float = 10.0,
-        delta_sigma: float = 50.0,   # 一个相对值,标准差的相对变化倍数float=2.0
+        delta_sigma: float = 50.0,
 ) -> Tuple[NDArray[float], NDArray[float]]:
     """
-    条件边界
     :param p0: The initial parameters.
     :param delta_peak: Range of variation of the peak value (fraction of amplitude).
     :param delta_mu: Range of variation of the mu (absolute value).
@@ -248,10 +235,11 @@ class MGF:
             save_dir: str = None,
     ):
         """
-        利用高斯多峰拟合, 提取经过VG算法与Peak Prominence方法分段后的心电信号形状参数.
+        Using Gaussian multi-peak fitting to extract the morphological parameters of
+        ECG signals after segmentation by the VG algorithm and Peak Prominence method.
         """
         # segment:
-        segments = segment(self.ecg, self.fs, self.samples, method='Prominence')    # 使用VG算法
+        segments = segment(self.ecg, self.fs, self.samples, method='Prominence')
 
         # fitting:
         params = pd.DataFrame(data=[],
@@ -262,12 +250,11 @@ class MGF:
                                        'A_5', 'mu_5', 'sigma_5',
                                        'B'])
 
-        skipped_beats = 0  # 统计跳过的数量
+        skipped_beats = 0
         for beat_idx, s in tqdm(segments.items(), desc='fitting process', total=len(segments)):
             try:
                 symbol = self._get_beat_symbol(beat_idx)
 
-                # 创建聚类标签用于初始参数估计
                 c = np.zeros(s.shape[0], dtype=int)
                 for i, (start, end) in enumerate(
                         zip(['P_on', 'Q_on', 'R_on', 'S_on', 'T_on'], ['P_off', 'Q_off', 'R_off', 'S_off', 'T_off'])):
@@ -279,18 +266,16 @@ class MGF:
                     offset = off_list[0]
                     c[onset:offset] = i + 1
 
-                # 获取初始参数
                 p0 = get_params0(s.index.to_numpy(), s.signal.to_numpy(), c)
 
-                # 拟合
                 popt, pcov = fit_multi_Gauss(s.index.to_numpy(), s.signal.to_numpy(), p0,
                                              weight_power=weight_power,
                                              delta_peak=delta_peak,
                                              delta_mu=delta_mu,
                                              delta_sigma=delta_sigma)
-                # 检查拟合结果长度
+
                 if len(popt) != len(params.columns):
-                    error_msg = f"{self.record_name}心拍 ： {beat_idx}拟合参数长度 {len(popt)} 与预期 {len(params.columns)} 不匹配，跳过"
+                    error_msg = f"{self.record_name}： The length of the fitted parameters {len(popt)} does not match the expected {len(params.columns)}, skipping"
                     print(error_msg)
                     _log_error(error_msg)
                     skipped_beats += 1
@@ -303,16 +288,16 @@ class MGF:
                                                               result=pcov,
                                                               symbol=symbol)
                 self.fitting_results.append(fitting_result)
-            except Exception as e:          # 跳过就把这个注释取消了
-                error_msg = f"{self.record_name}心拍 {beat_idx} 处理过程中出现异常: {e}"
+            except Exception as e:
+                error_msg = f"{self.record_name} an exception occurred during heartbeat {beat_idx} processing: {e}"
                 print(error_msg)
                 _log_error(error_msg)
                 skipped_beats += 1
-                continue  # 继续处理下一个心拍
+                continue
         self.params = params
         total_beats = len(segments)
         success_beats = total_beats - skipped_beats
-        msg = f"拟合完成: 总共 {total_beats} 个心拍，成功 {success_beats} 个，跳过 {skipped_beats} 个"
+        msg = f"Fitting completed: a total of {total_beats} heartbeats, {success_beats} successful, {skipped_beats} skipped"
         print(msg)
         _log_error(msg)
 
@@ -377,19 +362,17 @@ class MGF:
         if save_dir is None:
             save_dir = os.getcwd()
 
-        # 确保目录存在
+
         os.makedirs(save_dir, exist_ok=True)
 
-        # 保存拟合结果数据
         fitting_df = pd.DataFrame(self.fitting_results)
         fitting_path = os.path.join(save_dir, 'fitting_results.csv')
         fitting_df.to_csv(fitting_path, index=False)
-        print(f"拟合结果已保存至: {fitting_path}")
+        print(f"The fitting results have been saved to: {fitting_path}")
 
-        # 保存参数数据
         params_path = os.path.join(save_dir, 'gaussian_params.csv')
         self.params.to_csv(params_path, index=False)
-        print(f"高斯参数已保存至: {params_path}")
+        print(f"The Gaussian parameters have been saved to: {params_path}")
 
     def _show(self):
         if self.params is None:
@@ -417,7 +400,7 @@ if __name__ == '__main__':
                  '212', '213', '214', '215', '217', '219', '220', '221',
                  '222', '223', '228', '230', '231', '232', '233', '234']
     db = mitArr()
-    # for index in file_name:     # 创建保存文件夹
+    # for index in file_name:
     #     out_dir = f'signal_and_params_of_5_gaussian_VG_1_skip/{index}/view'
     #     os.makedirs(out_dir, exist_ok=True)
 
@@ -439,12 +422,5 @@ if __name__ == '__main__':
             save_segments=True,
             save_dir=out_dir
         )
-        # mgf.params.to_csv(os.path.join(out_dir, '212_params.csv'), index=False)
-        # mgf.plot_fitting_comparison(beat_indices=list(range(10)), save_dir=out_dir)
-        # fig = mgf.show()
-        # fig = mgf._show()
-        # fig.show()
-        # fig.savefig(
-        #     'D:/PycharmProjects/EcgKits-master/MIT ARR可视化图' + '/' + f'1125_{data.name}_1' + '.png')
-        # plt.close(fig)
+
 

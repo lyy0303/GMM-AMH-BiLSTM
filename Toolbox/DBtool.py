@@ -52,31 +52,6 @@ class mitArr:
                 path: str = None,
                  ) -> None:
         self.path = path or os.path.dirname(__file__) + r'./Data/mit-bih-arrhythmia-database-1.0.0'
-
-    # def filter_ecg(self, sig, fs, lowcut=0.5, highcut=25, notch_freq=50, order=2):
-    #     """
-    #     ECG信号滤波流程：高通（去基线）→ 低通（去高频）→ 陷波（去工频）
-    #     :param sig: 原始ECG信号（一维数组）
-    #     :param fs: 采样率（Hz）
-    #     :param lowcut: 高通截止频率（默认0.5Hz，抑制基线漂移）
-    #     :param highcut: 低通截止频率（默认40Hz，抑制肌电噪声）
-    #     :param notch_freq: 工频干扰频率（默认50Hz，国内市电频率）
-    #     :return: 滤波后的ECG信号
-    #     """
-    #     # 1. 高通滤波（抑制基线漂移）
-    #     nyq = 0.5 * fs
-    #     high = lowcut / nyq
-    #     b_high, a_high = signal.butter(order, high, btype='highpass')
-    #     sig_high = filtfilt(b_high, a_high, sig)  # 零相位滤波，避免波形偏移
-    #     # 2. 低通滤波（抑制高频噪声）
-    #     low = highcut / nyq
-    #     b_low, a_low = signal.butter(order, low, btype='lowpass')
-    #     sig_low = filtfilt(b_low, a_low, sig_high)
-    #     # 3. 陷波滤波（抑制工频干扰）
-    #     b_notch, a_notch = iirnotch(notch_freq / nyq, 30)  # 30是品质因数，控制陷波带宽
-    #     sig_filtered = filtfilt(b_notch, a_notch, sig_low)
-    #     return sig_filtered
-
     def record(self,
                record_name: str,
                channel: int | str = 'MLII',
@@ -109,8 +84,8 @@ class mitArr:
                     raise ValueError(f"channel name must be in {available_channels}")
         else:
             raise ValueError('channel must be an integer or string')
-        # 过滤信号
-        filter_sig = np.array(nk2.ecg_clean(signal[ :, channel], sampling_rate=fields['fs'], method="vg"))    # 换为0相位滤波
+
+        filter_sig = np.array(nk2.ecg_clean(signal[ :, channel], sampling_rate=fields['fs'], method="vg"))
         match_beat_type, conf_matrix, diff, r_pre  = self.match_beat_type(sig=filter_sig, r_real=origin_sample, fs=fields['fs'],
                                                symbol=origin_symbol)
         sample = r_pre[np.isin(match_beat_type, PEAK_SYMBOL)]
@@ -225,11 +200,6 @@ class luecgdb:
 
     @staticmethod
     def _get_peak_on_off(a, symbols=None, left=0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Auxiliary function to extract  on/peak/offset of annotations given the following
-        format: ´["(", "N", ")", "(", "N"...]´
-        Code by: https://github.com/JonasEmrich/prominence-delineator
-        """
         if symbols is None:
             symbols = ["N"]
         a_sym = np.array(a.symbol)
@@ -251,7 +221,7 @@ class luecgdb:
         return on, peaks, off
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':     # For testing
     # def test1():
     #     db = luecgdb()
     #     print(db.record('data/1').fs)
@@ -267,31 +237,10 @@ if __name__ == '__main__':
         orignal_sig = db.record(name).original_signal
         print(len(filter_sig))
         print(len(orignal_sig))
-        # 如果没有 x 轴数据，可以用索引作为 x
-        x = np.arange(len(filter_sig))
 
-        # 创建图形
-        plt.figure(figsize=(10, 6))
+        print(db.record(name).signal)
+        print(db.record(name).name)
 
-        # 绘制两条线
-        plt.plot(x[: 1000], filter_sig[: 1000] , label='fliter', color='#1f77b4')
-        plt.plot(x[: 1000], orignal_sig[: 1000], label='origine', color='#ff7f0e')
-
-        # 添加标签和标题
-        plt.xlabel('Index')
-        plt.ylabel('Value')
-        plt.title('Two Data Series in One Plot')
-        plt.legend()
-        # plt.grid(True)
-
-        # 显示图形
-        plt.savefig(f'test_filter_{db.record(name).name}.png')
-
-        # print(db.record('100').signal)
-        # print(db.record('100').name)
-        # # print(db.record('100').beat_type)
-
-        # print(db.record('100').beat_type)
         # print(db.record('100').p_on)
 
     file_name = ['100', '101', '102', '103', '104', '105', '106', '107',
