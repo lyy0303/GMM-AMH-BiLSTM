@@ -96,7 +96,7 @@ class mitArr:
         df['origin_symbol'] = pd.DataFrame(origin_symbol, columns=['origin_symbol'])
         df['sample'] = pd.DataFrame(sample, columns=['sample'])
         df['symbol'] = pd.DataFrame(symbol, columns=['symbol'])
-        df.to_csv(f'D:/PycharmProjects/EcgGmm/Toolbox/Match_symbol_VG/symbol_{record_name}.csv', index=False)
+        df.to_csv(f'./Match_symbol_VG/symbol_{record_name}.csv', index=False)
 
         return Data(
             name=record_name,
