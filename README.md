@@ -13,11 +13,11 @@
 | T wave   | ≥ 300 ms |
 # 3. GaussECG:
 ### (1) Fit 5 waveforms using 5 Gaussian components.
-<img src="/DataAnalysis/100_0_ecg.png" alt="Example of partition results" style="width: 800px; height: auto;">
+
 
 # 4. DataAnalysis:
 ### (1) Build the AMH-BiLSTM model.
 ### (2) Process data and merge partitioned datasets.
 ### (3) Import data and train and test.
 <img src="/DataAnalysis/confusion_matrix.png" alt="Confusion matrix" style="width: 400px; height: auto;">
-<img src="/DataAnalysis/ROC_curve.png" alt="ROC curve" style="width: 400px; height: auto;">
+
