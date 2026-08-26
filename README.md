@@ -19,5 +19,5 @@
 ### (1) Build the AMH-BiLSTM model.
 ### (2) Process data and merge partitioned datasets.
 ### (3) Import data and train and test.
-<img src="/DataAnalysis/confusion_matrix_AMHBiLSTM.png" alt="Confusion matrix" style="width: 400px; height: auto;">
-<img src="/DataAnalysis/ROC_curve_AMHBiLSTM.png" alt="ROC curve" style="width: 400px; height: auto;">
+<img src="/DataAnalysis/confusion_matrix.png" alt="Confusion matrix" style="width: 400px; height: auto;">
+<img src="/DataAnalysis/ROC_curve.png" alt="ROC curve" style="width: 400px; height: auto;">
